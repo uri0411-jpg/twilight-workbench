@@ -318,9 +318,104 @@ export function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
 }
 
+// ─────────────────────────────────────────
+//  logoImg — inline image tag for sun icons
+// ─────────────────────────────────────────
+
+const _LOGO_SRCS = {
+  sunrise:  'images/sunrise.png',
+  sunset:   'images/sunset.png',
+  twilight: 'images/twilight.png'
+};
+
+/**
+ * Returns an <img> HTML string for the given icon type.
+ * @param {'sunrise'|'sunset'|'twilight'} type
+ * @param {number} [size=20]
+ * @returns {string}
+ */
+export function logoImg(type, size = 20) {
+  const src = _LOGO_SRCS[type] || _LOGO_SRCS.twilight;
+  return `<img src="${src}" width="${size}" height="${size}" alt="" style="vertical-align:middle;object-fit:contain;flex-shrink:0">`;
+}
+
+// ─────────────────────────────────────────
+//  updateDynamicGradient
+//  Tints the .overlay element to match score + palette style
+// ─────────────────────────────────────────
+
+/**
+ * Updates the page overlay tint to reflect today's forecast mood.
+ * @param {number} score        - 1–10 sunset score
+ * @param {number} turbidity    - 0–1 atmospheric haziness
+ * @param {string} paletteStyle - e.g. 'Desert Fire', 'Grey Veil', 'Sea Blush', …
+ */
+export function updateDynamicGradient(score, turbidity = 0.3, paletteStyle = '') {
+  const overlay = document.querySelector('.overlay');
+  if (!overlay) return;
+
+  const t = Math.max(0, Math.min(1, turbidity));
+  const s = Math.max(1, Math.min(10, score));
+
+  // Base opacity scales with turbidity (hazier = denser overlay)
+  const baseOpacity = 0.18 + t * 0.18;
+  const botOpacity  = 0.55 + t * 0.15;
+
+  let topColor, midColor;
+
+  if (paletteStyle.includes('Grey') || s <= 3) {
+    // Low-score / grey: cool blue-grey tint
+    topColor = `rgba(15,12,22,${baseOpacity})`;
+    midColor = `rgba(12,10,18,${baseOpacity * 0.5})`;
+  } else if (paletteStyle.includes('Desert') || paletteStyle.includes('Fire')) {
+    // Desert Fire: warm amber-red
+    topColor = `rgba(40,10,0,${baseOpacity})`;
+    midColor = `rgba(28,8,0,${baseOpacity * 0.4})`;
+  } else if (paletteStyle.includes('Sea') || paletteStyle.includes('Coast')) {
+    // Coastal/sea: cool lilac
+    topColor = `rgba(10,8,30,${baseOpacity})`;
+    midColor = `rgba(8,6,22,${baseOpacity * 0.4})`;
+  } else if (s >= 7) {
+    // High score: warm sunset haze
+    topColor = `rgba(30,8,0,${baseOpacity})`;
+    midColor = `rgba(20,6,0,${baseOpacity * 0.4})`;
+  } else {
+    // Mid score: neutral brown
+    topColor = `rgba(20,8,0,${baseOpacity})`;
+    midColor = `rgba(16,6,0,${baseOpacity * 0.4})`;
+  }
+
+  overlay.style.background = `linear-gradient(
+    180deg,
+    ${topColor} 0%,
+    ${midColor} 35%,
+    ${midColor} 60%,
+    rgba(10,4,0,${botOpacity}) 100%
+  )`;
+}
+
+// ─────────────────────────────────────────
+//  esc — HTML escape for untrusted strings
+// ─────────────────────────────────────────
+
+/**
+ * Escapes HTML special characters to prevent XSS.
+ * @param {string} str
+ * @returns {string}
+ */
+export function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ✎ fixed: showLoading — reference-counted, works with display:flex/.hidden pattern
 // ✎ fixed: showToast — queue-based, opacity transitions, no display:none flicker
 // ✎ added: forceHideLoading — hard reset for error recovery
 // ✎ added: buildGaugeSVG — SVG arc gauge extracted from main-screen.js
 // ✎ added: formatTime, formatHebrewDate, windDirToHebrew, clamp helpers
+// ✎ added: logoImg, updateDynamicGradient, esc — were imported but missing
 // ✓ ui.js — complete
