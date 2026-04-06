@@ -9,8 +9,8 @@
   "orientation": "portrait",
   "theme_color": "#3B1F08",
   "background_color": "#1A0A02",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/twilight-workbench/",
+  "scope": "/twilight-workbench/",
   "id": "twilight-pwa",
   "icons": [
     {
@@ -56,14 +56,14 @@
       "name": "תחזית היום",
       "short_name": "היום",
       "description": "ציון שקיעה להיום",
-      "url": "/",
+      "url": "/twilight-workbench/",
       "icons": [{ "src": "images/icon-96.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Spot Finder",
       "short_name": "ספוטים",
       "description": "מצא נקודות תצפית",
-      "url": "/?screen=spots",
+      "url": "/twilight-workbench/?screen=spots",
       "icons": [{ "src": "images/icon-96.png", "sizes": "96x96", "type": "image/png" }]
     }
   ]

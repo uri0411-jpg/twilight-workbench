@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════
 
 // 🔴 BUMP THIS ON EVERY DEPLOY (twl-v3, twl-v4, ...)
-const CACHE_NAME = 'twl-v6';
+const CACHE_NAME = 'twl-v7';
 const TILE_CACHE = 'twl-tiles'; // persistent across deploys — managed by MAX_TILES
 const MAX_TILES  = 250;         // ~6MB at ~25KB/tile
 
@@ -34,7 +34,12 @@ const STATIC_ASSETS = [
   './js/settings-screen.js',
   './js/sw-register.js',
   './js/calibration.js',
-  './js/install-prompt.js'
+  './js/install-prompt.js',
+  './js/debugPanel.js',
+  './js/engine/physicsLayer.js',
+  './js/engine/scoreEngine.js',
+  './js/engine/goldenWindow.js',
+  './js/engine/decisionEngine.js'
 ];
 
 const API_PATTERNS = [
@@ -208,12 +213,11 @@ self.addEventListener('push', event => {
   const title = data.title || 'TWILIGHT · דמדומים';
   const options = {
     body:    data.body || 'תנאי שקיעה מעולים היום!',
-    icon:    '/images/sunset.png',
-    // FIX #3: was '/images/icon-192.svg' — correct extension is .png
-    badge:   '/images/icon-192.png',
+    icon:    '/twilight-workbench/images/sunset.png',
+    badge:   '/twilight-workbench/images/icon-192.png',
     dir:     'rtl',
     lang:    'he',
-    data:    { url: data.url || '/' },
+    data:    { url: data.url || '/twilight-workbench/' },
     actions: [
       { action: 'open',    title: 'פתח אפליקציה' },
       { action: 'dismiss', title: 'סגור' }
@@ -226,7 +230,7 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   if (event.action === 'dismiss') return;
 
-  const targetUrl = event.notification.data?.url || '/';
+  const targetUrl = event.notification.data?.url || '/twilight-workbench/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
