@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════
-//  TWILIGHT — score.js v6
+//  TWILIGHT — score.js v7
 //  Sunset scoring: certainty × drama (exponential gate)
-//  v6: Plug & Play modules (cloudScore/aodScore/atmosphereScore),
-//      Dynamic Palette, Afterglow model, Cloud Base Height proxy,
-//      Sea Salt bell curve, Washout visibility boost,
-//      Crowdsourced cLow penalty calibration
+//  v7: Recalibrated exponent (1.8→1.3), wider bell curves,
+//      Cloud base from dew-point (B1), Crepuscular rays proxy (A1),
+//      Smooth AOD decay, Ångström refinement (A3),
+//      Model-variance surprise bonus (D3)
 // ═══════════════════════════════════════════
 
 import { formatTime, twilightRange, addMinutes, scoreToColorContinuous, scoreToLabel,
@@ -61,7 +61,8 @@ function sunsetWindowDip(arr, idx) {
 // ─────────────────────────────────────────
 function calcCertainty(params) {
   const { clouds, cloudsLow, cloudsMid, cloudsHigh, visibility, rain, rainProb,
-          weatherCode, cloudsLowWest, inversionStrength, lat, lon } = params;
+          weatherCode, cloudsLowWest, inversionStrength, lat, lon,
+          dewPoint, tempAtSunset } = params;
   const c   = Number(clouds)     || 0;
   const cLo = Number(cloudsLow)  ?? c;
   const v   = Number(visibility) || 10;
@@ -73,28 +74,33 @@ function calcCertainty(params) {
   const cMidCert  = hasLayers ? (Number(cloudsMid)  ?? 0) : c * 0.25;
   const cHighCert = hasLayers ? (Number(cloudsHigh) ?? 0) : c * 0.10;
 
-  // Cloud Base Height proxy:
-  // When cLow > 50 but visibility remains good (>8km), the cloud base is likely
-  // elevated (cumulus at 600–1500m rather than stratus at 50–200m). Elevated base
-  // allows light to reach the horizon underneath, so we reduce the penalty.
-  // Calibration multiplier (0.60–1.40) learns from user ratings over time.
+  // B1: Cloud Base Height — dew-point spread formula (Stull 1988, LCL approximation)
+  // cloud_base_km ≈ (temp − dewpoint) / 8
+  // High base (>2.5 km) = cumulus/alto, not stratus — light can pass underneath.
+  // Visibility proxy retained as secondary check when spread is narrow.
+  const dp          = Number(dewPoint)     ?? 10;
+  const tss         = Number(tempAtSunset) ?? 25;
+  const cloudBaseKm = Math.max(0, (tss - dp) / 8);
   let cLoBaseHtMult = 1.0;
-  if (cLo > 50 && v > 8) {
-    // Reduce penalty proportionally: 8km vis → 1.0×, 20km → ~0.80×
-    cLoBaseHtMult = Math.max(0.8, 1 - (v - 8) / 60);
+  if (cLo > 50) {
+    if (cloudBaseKm > 2.5) {
+      cLoBaseHtMult = Math.max(0.58, 1 - cloudBaseKm / 18);
+    } else if (v > 8) {
+      cLoBaseHtMult = Math.max(0.80, 1 - (v - 8) / 60);
+    }
   }
-  const cloAdjust  = getCloudPenaltyAdjustment(lat, lon); // crowdsource multiplier
+  const cloAdjust  = getCloudPenaltyAdjustment(lat, lon);
   const cLoPenalty = (cLo / 100) * cLoBaseHtMult * cloAdjust;
 
-  // Cloud penalty by layer (using calibrated cLo penalty)
+  // Cloud penalty by layer
   const cloudPenalty = cLoPenalty * 0.55
                      + (cMidCert / 100) * 0.28
                      + (cHighCert / 100) * 0.06
                      + (c / 100) * 0.11;
   const cloudCert = Math.max(0, 1 - cloudPenalty);
 
-  // Visibility: <3km very bad, >15km good
-  const visCert = Math.min(1, Math.max(0, (v - 2) / 13));
+  // Visibility: full at 20 km (was 15), floor at 3 km (was 2)
+  const visCert = Math.min(1, Math.max(0, (v - 3) / 17));
 
   // Rain
   let rainCert = 1.0;
@@ -149,12 +155,14 @@ function cloudScore(params) {
 
   // F2: Weighted cloud — cirrus >> mid >> stratus
   const dramaCloud = Math.min(100, cHigh * 0.55 + cMid * 0.30 + Math.max(0, c - cHigh - cMid) * 0.15);
-  const rawCloud   = bell(dramaCloud, 35, 32, 0.75);
+  // Wider bell (45 vs 32) + lower peak (30 vs 35): clear skies score better,
+  // overcast less punishing at the margins
+  const rawCloud = bell(dramaCloud, 30, 45, 0.75);
 
-  // N3: Cloud Opacity Class multiplier
+  // N3: Cloud Opacity Class multiplier — stratus raised 0.45→0.58
   let opacityMult = 1.0;
   if      (cHigh > 20 && cLow < 20)    opacityMult = 1.25; // thin cirrus → vivid
-  else if (cLow  > 55)                  opacityMult = 0.45; // stratus → grey
+  else if (cLow  > 55)                  opacityMult = 0.58; // stratus → grey (was 0.45)
   else if (cMid  > 50 && cLow < 25)    opacityMult = 0.80; // altostratus → muted
 
   // N6: High cloud bonus — cirrus is the best afterglow scatterer
@@ -179,11 +187,19 @@ function cloudScore(params) {
   const win = Number(sunsetWindow) || 0;
   const windowBonus = win > 30 ? 0.20 : win > 20 ? 0.14 : win > 10 ? 0.07 : 0;
 
+  // A1: Crepuscular rays proxy
+  // Partial mid-cloud with gaps (30-65%) + variable pattern (|delta|>5) + clear low layer
+  // creates the light-shaft "crepuscular ray" effect visible near low sun.
+  const crepuscularBonus = (cMid > 28 && cMid < 65 && cLow < 30 && Math.abs(delta) > 5)
+    ? bell(cMid, 45, 18, 0.14)
+    : 0;
+
   return Math.max(0, Math.min(1,
     rawCloud * opacityMult * 0.55
     + highBonus + midBonus
     + deltaDrama * 0.15
     + windowBonus
+    + crepuscularBonus
   ));
 }
 
@@ -196,10 +212,14 @@ function aodScore(params) {
   const p10 = Number(pm10)  || 0;
   const ao  = Number(aod)   || 0;
 
-  // F6: Dust bell curve — sweet spot 20–30µg: warm glow; >60: grey haze
+  // F6: Dust bell — wider peak (30 vs 20), lower optimum (20 vs 25µg)
+  // Clean air is no longer penalised as much; heavy haze still drops off
   const dustLevel = Math.max(d, p10 * 0.3);
-  let dustDrama   = bell(dustLevel, 25, 20, 0.72);
-  if (ao > 0.5) dustDrama = Math.min(dustDrama, 0.15); // heavy aerosol column override
+  let dustDrama   = bell(dustLevel, 20, 30, 0.72);
+
+  // A3: Smooth AOD decay instead of hard cap at 0.15
+  // Starts attenuating at AOD=0.3; reaches 0.25× at AOD≈1.0
+  if (ao > 0.3) dustDrama *= Math.max(0.25, 1 - (ao - 0.3) * 1.4);
 
   // PM2.5 fine-particle colour enhancement
   let pm25Bonus = 0;
@@ -209,11 +229,14 @@ function aodScore(params) {
   else                              pm25Bonus = -0.08;
   dustDrama = Math.max(0, Math.min(1, dustDrama + pm25Bonus));
 
-  // N4: Angstrom proxy — fine vs coarse particle ratio
+  // A3: Ångström exponent proxy — fine vs coarse particle ratio
   // High ratio (≈1) = fine smoke/urban → vivid pink/violet scatter
-  // Low ratio (≈0)  = coarse dust → warm orange, less vivid
+  // Low ratio (≈0)  = coarse Saharan dust → warm orange, broad disc
   const angstromProxy = (p10 + d + 1) > 2 ? p25 / (p10 + d + 1) : 0.5;
-  const angstromBonus = angstromProxy > 0.7 ? 0.06 : angstromProxy < 0.25 ? -0.03 : 0;
+  const angstromBonus = angstromProxy > 0.7 ? 0.09    // fine particles = extra drama
+                      : angstromProxy > 0.4 ? 0.04
+                      : angstromProxy < 0.2 ? -0.02   // very coarse = slightly muted
+                      : 0;
 
   return Math.max(0, Math.min(1, dustDrama + angstromBonus));
 }
@@ -236,14 +259,14 @@ function atmosphereScore(params) {
   const az    = Number(solarAzimuth)      || 270;
   const p25   = Number(pm2_5)             || 0;
 
-  // F4: Humidity bell — peak at 60% (Rayleigh scattering optimum for Israel)
-  const humDrama = bell(h, 60, 25, 0.7);
+  // F4: Humidity bell — peak 55% (was 60%), wider (30 vs 25): Israel is drier
+  const humDrama = bell(h, 55, 30, 0.7);
 
-  // F3: Visibility contribution — 15–25km optimal; <8km opaque; >35km too clean
+  // F3: Visibility — wider bell, penalty starts at 6 km (was 8 km)
   let visDrama = 0;
-  if      (v >= 8 && v <= 35) visDrama = bell(v, 18, 10, 0.12);
-  else if (v < 8)              visDrama = -0.12;
-  else                         visDrama =  0.03;
+  if      (v >= 6 && v <= 40) visDrama = bell(v, 20, 14, 0.16);
+  else if (v < 6)              visDrama = -0.12;
+  else                         visDrama =  0.04;
 
   // Solar angle drama
   let solarDrama = 0.4;
@@ -481,8 +504,8 @@ export function calcAfterglow(params) {
 
 // ─────────────────────────────────────────
 //  COMBINED SCORE
-//  F1: drama × certainty^1.8  (exponential gate)
-//  certainty=1.0 → full drama; certainty=0.3 → drama×0.11
+//  F1: drama × certainty^1.3  (softer gate; was 1.8)
+//  certainty=1.0 → full drama; certainty=0.5 → drama×0.41 (was 0.30)
 //
 //  extended=true: also returns palette + afterglow
 // ─────────────────────────────────────────
@@ -490,7 +513,9 @@ export function calcScore(params, extended = false) {
   const certainty = calcCertainty(params);
   const drama     = calcDrama(params);
 
-  let raw = drama * Math.pow(certainty, 1.8);
+  // Softer exponent: 1.3 instead of 1.8 — partial cloud/haze days no longer
+  // lose 50-70% of their drama to certainty gating
+  let raw = drama * Math.pow(certainty, 1.3);
 
   // Hard overrides: certainty floor
   if (certainty < 0.15) raw = Math.min(raw, 0.12);
@@ -508,7 +533,15 @@ export function calcScore(params, extended = false) {
   // B3 FIX: apply geographic bonus (computed in buildScoreParams)
   score += (params.geoBonus || 0) * 5;
 
+  // D3: Surprise factor — when models disagree strongly, actual outcome
+  // tends to be more extreme; apply a small upward nudge for uncertainty
+  const mv = Number(params.modelVariance) || 0;
+  if      (mv > 22) score += 0.4;
+  else if (mv > 14) score += 0.2;
+  else if (mv > 8)  score += 0.1;
+
   // Calibration bias correction (location-aware)
+  // bias > 0 means we historically over-scored → subtract to correct
   const { bias } = getBiasCorrection(params.lat, params.lon);
   if (bias !== 0) score -= bias;
 
@@ -606,6 +639,10 @@ function buildScoreParams(h, idx, aq, aqIdx, lat, lon, eventISO, date, weatherCo
     twilightMode,
     weatherCode:      weatherCode || 0,
     tempAtSunset:     tempAtSunset || 25,
+    // B1: dew-point for cloud base height calculation
+    dewPoint:         valAt(h.dewpoint_2m,      idx, 10),
+    // D3: model variance — std dev of cloud cover across ensemble models
+    modelVariance:    valAt(h._cloudVariance,   idx, 0),
     lat, lon,
   };
 }
@@ -802,4 +839,8 @@ export function calcWeekData(weatherData, airQuality = null, lat = 32, lon = 34.
   return days;
 }
 
-// ✓ score.js v6 — complete
+// ✎ v7: exponent 1.8→1.3, visibility range widened, cloud bell wider (45/30),
+//       stratus mult 0.45→0.58, dust bell wider (30/20), smooth AOD decay,
+//       humidity bell adjusted (55/30), B1 cloud base from dew-point,
+//       A1 crepuscular rays proxy, A3 Ångström refinement, D3 surprise factor
+// ✓ score.js v7 — complete

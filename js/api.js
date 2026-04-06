@@ -81,6 +81,23 @@ function averageHourlyArrays(datasets, key) {
   });
 }
 
+// D3: Compute per-hour std-dev of cloud cover across ensemble models.
+// High variance = models disagree = higher potential for surprise outcome.
+function cloudVarianceArray(datasets) {
+  const primary = datasets[0]?.hourly?.cloudcover;
+  if (!primary || datasets.length < 2) return primary?.map(() => 0) ?? [];
+
+  return primary.map((_, i) => {
+    const vals = datasets
+      .map(d => d.hourly?.cloudcover?.[i])
+      .filter(v => v != null && !isNaN(v));
+    if (vals.length < 2) return 0;
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
+    return Math.sqrt(variance);
+  });
+}
+
 // ─────────────────────────────────────────
 //  fetchWeek — ensemble of up to 3 models
 // ─────────────────────────────────────────
@@ -111,6 +128,8 @@ export async function fetchWeek(lat, lon) {
     }
   }
 
+  // D3: store cloud variance for surprise-factor scoring
+  primary.hourly._cloudVariance = cloudVarianceArray(datasets);
   primary._modelCount = datasets.length;
   setCache(cacheKey, primary, CACHE_TTL.weather);
   return primary;

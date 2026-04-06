@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════
 
 // 🔴 BUMP THIS ON EVERY DEPLOY (twl-v3, twl-v4, ...)
-const CACHE_NAME = 'twl-v7';
+const CACHE_NAME = 'twl-v8';
 const TILE_CACHE = 'twl-tiles'; // persistent across deploys — managed by MAX_TILES
 const MAX_TILES  = 250;         // ~6MB at ~25KB/tile
 
