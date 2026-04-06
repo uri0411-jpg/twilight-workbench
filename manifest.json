@@ -1,0 +1,70 @@
+{
+  "name": "TWILIGHT · דמדומים",
+  "short_name": "TWILIGHT",
+  "description": "תחזית איכות דמדומים לישראל",
+  "dir": "rtl",
+  "lang": "he",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait",
+  "theme_color": "#3B1F08",
+  "background_color": "#1A0A02",
+  "start_url": "/",
+  "scope": "/",
+  "id": "twilight-pwa",
+  "icons": [
+    {
+      "src": "images/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "images/screenshot-main.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "תחזית דמדומים"
+    }
+  ],
+  "categories": ["weather", "utilities"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "shortcuts": [
+    {
+      "name": "תחזית היום",
+      "short_name": "היום",
+      "description": "ציון שקיעה להיום",
+      "url": "/",
+      "icons": [{ "src": "images/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Spot Finder",
+      "short_name": "ספוטים",
+      "description": "מצא נקודות תצפית",
+      "url": "/?screen=spots",
+      "icons": [{ "src": "images/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}

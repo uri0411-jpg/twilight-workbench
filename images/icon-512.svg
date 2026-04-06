@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#3B1F08"/>
+  <circle cx="96" cy="85" r="36" fill="none" stroke="#D4820A" stroke-width="4"/>
+  <line x1="96" y1="40" x2="96" y2="22" stroke="#F0B84A" stroke-width="4" stroke-linecap="round"/>
+  <line x1="96" y1="168" x2="96" y2="150" stroke="#F0B84A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M60 85 Q96 130 132 85" fill="none" stroke="#F0B84A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M40 95 Q50 85 60 80" fill="none" stroke="#F0B84A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M152 95 Q142 85 132 80" fill="none" stroke="#F0B84A" stroke-width="3" stroke-linecap="round"/>
+  <text x="96" y="100" text-anchor="middle" font-family="serif" font-size="44" font-weight="bold" fill="#F0B84A">T</text>
+  <text x="96" y="155" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#F5E6C8" letter-spacing="3">TWILIGHT</text>
+</svg>
