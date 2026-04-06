@@ -314,6 +314,30 @@ function buildGoldenWindowBadge(today) {
 }
 
 // ─────────────────────────────────────────
+//  Palette strip — shows predicted sky type
+// ─────────────────────────────────────────
+function buildPaletteStrip(today) {
+  const p = today?.palette;
+  if (!p) return '';
+
+  return `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 2px;margin-bottom:-4px">
+      <span style="
+        display:inline-flex;align-items:center;gap:6px;
+        background:linear-gradient(90deg,${p.primary}22,${p.secondary}11);
+        border:1px solid ${p.primary}55;
+        border-radius:20px;padding:4px 10px;
+        font-size:11px;font-weight:600;color:${p.primary};
+        font-family:'Rubik',sans-serif;
+      ">
+        <span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,${p.primary},${p.secondary});flex-shrink:0"></span>
+        ${p.styleHe}
+      </span>
+      <span style="font-size:10px;color:rgba(245,220,180,0.45);font-family:'Rubik',sans-serif;line-height:1.3">${p.description}</span>
+    </div>`;
+}
+
+// ─────────────────────────────────────────
 //  Build full HTML
 // ─────────────────────────────────────────
 function buildMainHTML(loc, city, weekData) {
